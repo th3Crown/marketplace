@@ -7,13 +7,12 @@ CREATE TABLE users (
     username VARCHAR(50) NOT NULL UNIQUE,
     email VARCHAR(100) NOT NULL UNIQUE,
     password VARCHAR(255) NOT NULL,
+    profile_image VARCHAR(255) DEFAULT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Sample user for testing (username: demo, password: demo)
 INSERT INTO users (username, email, password) VALUES ('demo', 'demo@example.com', 'demo');
 
--- Products table for marketplace
 CREATE TABLE products (
     id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT NOT NULL,
@@ -25,10 +24,9 @@ CREATE TABLE products (
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
--- Sample products (run these after creating the DB)
--- Each product references the sample user created above (user_id = 1)
+-- Example products to be inserted built in but no image
 INSERT INTO products (user_id, title, description, price, image_url) VALUES
 (1, 'Classic Runner', 'Comfortable running shoe', 79.00, 'images/products/shoe1.jpg'),
-(1, 'Urban Sneaker', 'Stylish everyday sneaker', 99.00, 'images/products/shoe2.jpg'),
+(1, 'Krazy Rapid Boots', 'Stylish everyday sneaker', 99.00, 'images/products/shoe2.jpg'),
 (1, 'Street Pro', 'Durable street shoe', 129.00, 'images/products/shoe3.jpg'),
 (1, 'Light Runner', 'Lightweight running shoe', 69.00, 'images/products/shoe4.jpg');
