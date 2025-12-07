@@ -1,15 +1,15 @@
-# E_COMMMERCE Campus Marketplace 
+# E_COMMERCE Campus Marketplace
 
-Members:
+## Members
+1. Calatcat Daryl Rain  
+2. Casile Janica A.  
+3. Alwena Valencia  
+4. Macay Roselyn B.
 
-1.Calatcat Daryl Rain
-2.Casile Janica A.
-3.Alwena Valencia
-4.Macay Roselyn B.
+## Instructions
+1. Download all the files and move them inside the **HTDOCS** folder.  
+   Example: `htdocs/marketplace/` (paste all files here)
 
+2. Copy the SQL code from `sql/db.txt` and paste it into the **SQL Tab**, then run the query to create the database and tables.
 
-Instruction:
-1.Download all the file here and move it inside the HTDOCS folder, create also a folder to place it all inside ot it 
-(ex: htdocs/marketplace/paste all here)
-2.Add the sql code(copy the inside of sql/db.txt) and paste it into SQL Tab and run sql query to create the database and its Tables
-3.Sign Up and it will be redirected to the dashboard
+3. Sign up and you will be redirected to the dashboard.
