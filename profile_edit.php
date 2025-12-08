@@ -12,13 +12,9 @@ $isAjax = isset($_GET['ajax']) && $_GET['ajax'] === '1';
 $message = '';
 $user = null;
 try {
-    $stmt = $pdo->prepare('SELECT id, username, email FROM users WHERE id = ?');
+    $stmt = $pdo->prepare('SELECT id, username, email, profile_image FROM users WHERE id = ?');
     $stmt->execute([$_SESSION['user_id']]);
     $user = $stmt->fetch(PDO::FETCH_ASSOC);
-    
-    if ($user) {
-        $user['profile_image'] = null;
-    }
 } catch (Exception $e) {
     error_log('Profile fetch error: ' . $e->getMessage());
 }
@@ -53,12 +49,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($message === '') {
         try {
-            $stmt = $pdo->prepare('UPDATE users SET username = ?, email = ? WHERE id = ?');
-            $stmt->execute([$username, $email, $_SESSION['user_id']]);
+            if ($profile_image) {
+                $stmt = $pdo->prepare('UPDATE users SET username = ?, email = ?, profile_image = ? WHERE id = ?');
+                $stmt->execute([$username, $email, $profile_image, $_SESSION['user_id']]);
+            } else {
+                $stmt = $pdo->prepare('UPDATE users SET username = ?, email = ? WHERE id = ?');
+                $stmt->execute([$username, $email, $_SESSION['user_id']]);
+            }
             $message = 'Profile updated successfully!';
             $success = true;
             $user['username'] = $username;
             $user['email'] = $email;
+            if ($profile_image) {
+                $user['profile_image'] = $profile_image;
+            }
         } catch (Exception $e) {
             error_log('Profile update error: ' . $e->getMessage());
             $message = 'Could not update profile.';

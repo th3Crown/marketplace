@@ -16,13 +16,11 @@ $errorMsg = '';
 try {
     $userId = intval($_SESSION['user_id']);
     
-    $stmt = $pdo->prepare('SELECT id, username, email, created_at FROM users WHERE id = ?');
+    $stmt = $pdo->prepare('SELECT id, username, email, created_at, profile_image FROM users WHERE id = ?');
     $stmt->execute([$userId]);
     $user = $stmt->fetch(PDO::FETCH_ASSOC);
     
     if ($user) {
-        $user['profile_image'] = null;
-        
         $pstmt = $pdo->prepare('SELECT id, title, price, image_url FROM products WHERE user_id = ? ORDER BY created_at DESC');
         $pstmt->execute([$userId]);
         $userListings = $pstmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
@@ -63,9 +61,25 @@ try {
         .mini-list img { border-radius: 6px; }
         .btn { display:inline-block;padding:8px 12px;border-radius:8px;background:linear-gradient(45deg,#4ecdc4,#44a08d);color:#052;text-decoration:none;font-weight:600 }
         .tiny-btn { font-size:0.9rem }
-        @media (max-width: 800px) {
-            .profile-grid { grid-template-columns:1fr !important; }
+        
+        .profile-grid { display:grid;grid-template-columns:280px 1fr;gap:20px;align-items:start; }
+        
+        @media (max-width: 1100px) {
+            .profile-wrapper { padding:16px !important; }
         }
+        
+        @media (max-width: 900px) {
+            .profile-grid { grid-template-columns:1fr !important; }
+            .profile-wrapper { max-width: 100% !important; margin: 0 !important; padding: 16px !important; }
+        }
+        
+        @media (max-width: 768px) {
+            .profile-grid { grid-template-columns:1fr !important; }
+            .profile-wrapper { padding: 12px !important; }
+            .mini-list li { flex-direction: column; text-align: center; }
+            .mini-list div:first-child { width: 100%; justify-content: center; }
+        }
+        
         .modal-overlay { position:fixed; left:0; top:0; width:100%; height:100%; background:rgba(0,0,0,0.6); display:flex;align-items:flex-end; justify-content:center; z-index:1200; }
         .modal-card { width:100%; max-width:520px; background:rgba(20,24,31,0.98); border-radius:12px 12px 0 0; padding:18px; margin-bottom:40px; box-shadow:0 12px 40px rgba(0,0,0,0.6); }
         @media (min-width:801px) { .modal-overlay { align-items:center; } .modal-card { border-radius:12px; margin-bottom:0; } }

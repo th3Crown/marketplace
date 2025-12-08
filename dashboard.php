@@ -14,6 +14,17 @@ require_once 'db.php';
 $stmt = $pdo->prepare("SELECT * FROM products WHERE user_id = ? ORDER BY created_at DESC");
 $stmt->execute([$userId]);
 $userProducts = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+$stmt = $pdo->prepare("
+    SELECT p.*, COUNT(o.id) as order_count
+    FROM products p
+    LEFT JOIN orders o ON p.id = o.product_id
+    GROUP BY p.id
+    ORDER BY order_count DESC, p.created_at DESC
+    LIMIT 100
+");
+$stmt->execute();
+$popularProducts = $stmt->fetchAll(PDO::FETCH_ASSOC);
 ?>
 <!DOCTYPE html>  <!DOCTYPE html>
 <html lang="en">
@@ -24,6 +35,19 @@ $userProducts = $stmt->fetchAll(PDO::FETCH_ASSOC);
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @keyframes fadeInPage {
+            from {
+                opacity: 0;
+            }
+            to {
+                opacity: 1;
+            }
+        }
+        body.dashboard-page {
+            animation: fadeInPage 0.5s ease-in-out;
+        }
+    </style>
     <script>
         tailwind.config = {
             theme: {
@@ -75,56 +99,57 @@ $userProducts = $stmt->fetchAll(PDO::FETCH_ASSOC);
         <?php include __DIR__ . '/layout.php'; ?>
 
         <main class="main-content">
-            <div class="topbar animate__animated animate__fadeInDown" data-aos="fade-down">
-                <h2>Welcome back, <?php echo htmlspecialchars($username); ?>!</h2>
+            <div style="max-width:1200px;margin:0 auto;padding:20px;">
+                <div style="text-align:center;margin-bottom:30px;">
+                    <h2 style="color:#fff;font-size:1.8rem;margin-bottom:20px;">What are you looking for?</h2>
+                    <div style="display:flex;gap:10px;margin-bottom:20px;">
+                        <input type="text" id="searchInput" placeholder="Search products..." style="flex:1;padding:12px 16px;border-radius:8px;border:1px solid rgba(78,205,196,0.3);background:rgba(255,255,255,0.05);color:#fff;font-size:1rem;">
+                        <button onclick="searchProducts()" style="padding:12px 24px;background:#4ecdc4;color:#052;border:none;border-radius:8px;font-weight:600;cursor:pointer;">Search</button>
+                    </div>
+                    <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
+                        <button onclick="filterByPrice('all')" class="filter-btn" style="padding:8px 16px;background:rgba(78,205,196,0.2);color:#4ecdc4;border:1px solid #4ecdc4;border-radius:6px;cursor:pointer;">All</button>
+                        <button onclick="filterByPrice('low')" class="filter-btn" style="padding:8px 16px;background:rgba(255,255,255,0.05);color:#fff;border:1px solid rgba(78,205,196,0.3);border-radius:6px;cursor:pointer;">Low Price</button>
+                        <button onclick="filterByPrice('high')" class="filter-btn" style="padding:8px 16px;background:rgba(255,255,255,0.05);color:#fff;border:1px solid rgba(78,205,196,0.3);border-radius:6px;cursor:pointer;">High Price</button>
+                        <button onclick="filterByPrice('newest')" class="filter-btn" style="padding:8px 16px;background:rgba(255,255,255,0.05);color:#fff;border:1px solid rgba(78,205,196,0.3);border-radius:6px;cursor:pointer;">Newest</button>
+                    </div>
+                </div>
+
+                <section style="margin-top:40px;">
+                    <h3 style="color:#fff;font-size:1.4rem;margin-bottom:20px;">Popular This Week</h3>
+                    <p style="color:rgba(255,255,255,0.6);font-size:0.9rem;margin-bottom:15px;">Most ordered products by buyers</p>
+                    <div id="productsContainer" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px;max-height:calc(100vh - 300px);overflow-y:auto;padding-right:10px;">
+                        <?php if (!empty($popularProducts)): ?>
+                            <?php foreach ($popularProducts as $product): ?>
+                            <div class="product-card" style="background:rgba(255,255,255,0.03);border:1px solid rgba(78,205,196,0.2);border-radius:10px;overflow:hidden;transition:all 0.3s;position:relative;cursor:pointer;" onclick="<?php echo ((int)$product['user_id'] !== (int)$userId) ? "showProductDetails(" . json_encode([
+                                'id' => (int)$product['id'],
+                                'title' => htmlspecialchars($product['title']),
+                                'price' => htmlspecialchars($product['price']),
+                                'image_url' => !empty($product['image_url']) ? htmlspecialchars($product['image_url']) : 'https://via.placeholder.com/400x300?text=No+Image',
+                                'description' => htmlspecialchars($product['description'] ?? 'No description available')
+                            ]) . ")" : ""; ?>" onmouseover="this.style.opacity='0.9'" onmouseout="this.style.opacity='1'">
+                                <?php $imgUrl = !empty($product['image_url']) ? htmlspecialchars($product['image_url']) : 'https://via.placeholder.com/400x300?text=No+Image'; ?>
+                                <img src="<?php echo $imgUrl; ?>" alt="<?php echo htmlspecialchars($product['title']); ?>" style="width:100%;height:160px;object-fit:cover;">
+                                <?php if (!empty($product['order_count']) && $product['order_count'] > 0): ?>
+                                <div style="position:absolute;top:8px;right:8px;background:#4ecdc4;color:#052;padding:4px 8px;border-radius:4px;font-size:0.8rem;font-weight:700;">📦 <?php echo (int)$product['order_count']; ?></div>
+                                <?php endif; ?>
+                                <div style="padding:12px;">
+                                    <h4 style="margin:0 0 8px 0;color:#fff;font-weight:600;"><?php echo htmlspecialchars($product['title']); ?></h4>
+                                    <p style="margin:0 0 12px 0;color:#4ecdc4;font-weight:700;font-size:1.1rem;">₱<?php echo htmlspecialchars($product['price']); ?></p>
+                                    <?php if ((int)$product['user_id'] === (int)$userId): ?>
+                                    <button onclick="event.stopPropagation();deleteProduct(<?php echo (int)$product['id']; ?>, '<?php echo htmlspecialchars($product['title']); ?>')" style="width:100%;padding:8px;background:#f44336;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600;transition:all 0.3s;" onmouseover="this.style.background='#d32f2f'" onmouseout="this.style.background='#f44336'">Remove</button>
+                                    <p style="margin:6px 0 0 0;font-size:0.75rem;color:rgba(255,255,255,0.5);text-align:center;">(Your Product)</p>
+                                    <?php else: ?>
+                                    <button onclick="event.stopPropagation();buyProduct(<?php echo (int)$product['id']; ?>, '<?php echo htmlspecialchars($product['title']); ?>', <?php echo htmlspecialchars($product['price']); ?>)" style="width:100%;padding:8px;background:#4ecdc4;color:#052;border:none;border-radius:6px;cursor:pointer;font-weight:600;transition:all 0.3s;" onmouseover="this.style.background='#3db8af'" onmouseout="this.style.background='#4ecdc4'">Buy Now</button>
+                                    <?php endif; ?>
+                                </div>
+                            </div>
+                            <?php endforeach; ?>
+                        <?php else: ?>
+                            <p style="color:rgba(255,255,255,0.6);grid-column:1/-1;text-align:center;padding:40px;">No products found. <a href="add_listing.php" style="color:#4ecdc4;text-decoration:underline;">Add your first listing!</a></p>
+                        <?php endif; ?>
+                    </div>
+                </section>
             </div>
-
-            <section class="summary-cards">
-                <div class="dashboard-content grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                    <div class="dashboard-card bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300 animate__animated animate__fadeInUp" data-aos="fade-up" data-aos-delay="100">
-                        <h3><i class="fas fa-user text-primary"></i> Your Profile</h3>
-                        <p>Manage your account settings, update your profile, and view your activity.</p>
-                        <a href="profile.php" class="action-button bg-primary text-white px-4 py-2 rounded hover:bg-accent transition-colors">Edit Profile</a>
-                    </div>
-
-                    <div class="dashboard-card bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300 animate__animated animate__fadeInUp" data-aos="fade-up" data-aos-delay="200">
-                        <h3><i class="fas fa-shopping-cart text-primary"></i> Browse Products</h3>
-                        <p>Explore and purchase items from our marketplace.</p>
-                        <a href="products.php" class="action-button bg-primary text-white px-4 py-2 rounded hover:bg-accent transition-colors">Shop Now</a>
-                    </div>
-
-                    <div class="dashboard-card bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300 animate__animated animate__fadeInUp" data-aos="fade-up" data-aos-delay="300">
-                        <h3><i class="fas fa-bell text-primary"></i> Notifications</h3>
-                        <p>Check your latest updates and messages.</p>
-                        <a href="notifications.php" class="action-button bg-primary text-white px-4 py-2 rounded hover:bg-accent transition-colors">View Notifications</a>
-                    </div>
-
-                    <div class="dashboard-card bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300 animate__animated animate__fadeInUp" data-aos="fade-up" data-aos-delay="400">
-                        <h3><i class="fas fa-plus text-primary"></i> Sell Products</h3>
-                        <p>List your items for sale and reach buyers.</p>
-                        <a href="add_listing.php" class="action-button bg-primary text-white px-4 py-2 rounded hover:bg-accent transition-colors">Add Listing</a>
-                    </div>
-                </div>
-            </section>
-
-            <?php if (!empty($userProducts)): ?>
-            <section class="product-section mt-8">
-                <h3 class="section-title text-2xl font-semibold mb-4 animate__animated animate__fadeInLeft" data-aos="fade-left">Your Products</h3>
-                <div class="product-grid grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                    <?php foreach ($userProducts as $product): ?>
-                    <div class="product-card bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300 animate__animated animate__zoomIn" data-aos="zoom-in" data-aos-delay="100">
-                        <?php $imgUrl = !empty($product['image_url']) ? htmlspecialchars($product['image_url']) : 'https://via.placeholder.com/400x300?text=No+Image'; ?>
-                        <img src="<?php echo $imgUrl; ?>" alt="<?php echo htmlspecialchars($product['title']); ?>" class="w-full h-48 object-cover rounded">
-                        <div class="product-info mt-4">
-                            <h4 class="text-lg font-medium"><?php echo htmlspecialchars($product['title']); ?></h4>
-                            <p class="price text-primary font-bold">₱<?php echo htmlspecialchars($product['price']); ?></p>
-                            <a href="javascript:void(0);" class="action-button bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 transition-colors" onclick="if(confirm('Remove this product?')) { deleteProduct(<?php echo (int)$product['id']; ?>); }">Remove</a>
-                        </div>
-                    </div>
-                    <?php endforeach; ?>
-                </div>
-            </section>
-            <?php endif; ?>
         </main>
     </div>
 </div>
@@ -142,7 +167,6 @@ function logout() {
         window.location.href = 'index.php';
     })
     .catch(error => {
-        console.error('Logout error:', error);
         window.location.href = 'index.php';
     });
 }
@@ -177,31 +201,30 @@ window.addEventListener('DOMContentLoaded', function() {
     }
 });
 
-function viewProductDetails(id, title, price, imageUrl, description) {
+function showProductDetails(product) {
     let modal = document.getElementById('productDetailModal');
     if (!modal) {
         modal = document.createElement('div');
         modal.id = 'productDetailModal';
-        modal.style.cssText = 'display: none; position: fixed; z-index: 1100; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.7);';
+        modal.style.cssText = 'display: none; position: fixed; z-index: 1100; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.7); overflow-y: auto;';
         modal.onclick = function(e) { if (e.target === modal) closeProductModal(); };
         document.body.appendChild(modal);
     }
 
-    const unitPrice = parseFloat(price) || 0;
     modal.innerHTML = `
         <div style="background: rgba(45,55,72,0.98); margin: 4% auto; padding: 20px; border-radius: 10px; width: 92%; max-width: 700px; color: #fff;">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-                <h2 style="margin:0;font-size:1.25rem;">${title}</h2>
+                <h2 style="margin:0;font-size:1.25rem;">${product.title}</h2>
                 <button onclick="closeProductModal()" style="background:none;border:none;color:#fff;font-size:1.6rem;cursor:pointer;">&times;</button>
             </div>
             <div style="display:flex;gap:16px;flex-wrap:wrap;">
-                <img src="${imageUrl}" alt="${title}" style="width:260px;height:180px;object-fit:cover;border-radius:8px;flex-shrink:0;">
+                <img src="${product.image_url}" alt="${product.title}" style="width:260px;height:180px;object-fit:cover;border-radius:8px;flex-shrink:0;">
                 <div style="flex:1;min-width:200px;">
-                    <p style="margin:0 0 8px 0;color:#cbd5e0;">${description}</p>
-                    <p style="color:#4ecdc4;font-weight:700;font-size:1.1rem;margin-top:8px;">$${unitPrice.toFixed(2)}</p>
+                    <p style="margin:0 0 8px 0;color:#cbd5e0;">${product.description}</p>
+                    <p style="color:#4ecdc4;font-weight:700;font-size:1.2rem;margin-top:8px;">₱${parseFloat(product.price).toFixed(2)}</p>
                     <div style="margin-top:14px;display:flex;gap:8px;">
-                        <button class="action-button" onclick="buyProduct(${id}, ${JSON.stringify(title)})">Buy Now</button>
-                        <button class="action-button" onclick="closeProductModal()" style="background:rgba(255,255,255,0.06);">Close</button>
+                        <button onclick="buyProductFromModal(${product.id}, '${product.title}', ${product.price})" style="flex:1;padding:10px;background:#4ecdc4;color:#052;border:none;border-radius:6px;font-weight:600;cursor:pointer;transition:all 0.3s;" onmouseover="this.style.background='#3db8af'" onmouseout="this.style.background='#4ecdc4'">Buy Now</button>
+                        <button onclick="closeProductModal()" style="flex:1;padding:10px;background:rgba(255,255,255,0.1);color:#fff;border:none;border-radius:6px;font-weight:600;cursor:pointer;">Close</button>
                     </div>
                 </div>
             </div>
@@ -215,11 +238,10 @@ function closeProductModal() {
     if (modal) modal.style.display = 'none';
 }
 
-function buyProduct(productId, productTitle) {
-    const quantity = 1;
+function buyProductFromModal(productId, productTitle, productPrice) {
     const formData = new FormData();
     formData.append('product_id', productId);
-    formData.append('quantity', quantity);
+    formData.append('quantity', 1);
 
     fetch('place_order.php', {
         method: 'POST',
@@ -228,29 +250,47 @@ function buyProduct(productId, productTitle) {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            alert('✓ Order placed successfully!\n\nProduct: ' + data.product_title + '\nQuantity: ' + data.quantity + '\nTotal: $' + parseFloat(data.total_price).toFixed(2));
-            const pdm = document.getElementById('productDetailModal');
-            if (pdm) pdm.style.display = 'none';
-            setTimeout(() => location.reload(), 800);
+            closeProductModal();
+            showNotification('✓ Order placed! Product: ' + data.product_title + ' | Total: ₱' + parseFloat(data.total_price).toFixed(2), 'success');
+            setTimeout(() => location.reload(), 2000);
         } else {
-            alert('Error: ' + data.message);
+            showNotification('Error: ' + data.message, 'error');
         }
     })
     .catch(error => {
-        console.error('Error:', error);
-        alert('Error placing order. Please try again.');
+        showNotification('Error placing order. Please try again.', 'error');
+    });
+}
+
+function buyProduct(productId, productTitle, productPrice) {
+    const formData = new FormData();
+    formData.append('product_id', productId);
+    formData.append('quantity', 1);
+
+    fetch('place_order.php', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showNotification('✓ Order placed! Product: ' + data.product_title + ' | Total: ₱' + parseFloat(data.total_price).toFixed(2), 'success');
+            setTimeout(() => location.reload(), 2000);
+        } else {
+            showNotification('Error: ' + data.message, 'error');
+        }
+    })
+    .catch(error => {
+        showNotification('Error placing order. Please try again.', 'error');
     });
 }
 
 function deleteProduct(productId) {
-    console.log('Deleting product:', productId);
-    
     const xhr = new XMLHttpRequest();
     xhr.open('POST', 'delete_product.php', true);
     xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
     
     xhr.onload = function() {
-        console.log('Response:', xhr.responseText);
         try {
             const data = JSON.parse(xhr.responseText);
             if (data.success) {
@@ -260,13 +300,11 @@ function deleteProduct(productId) {
                 showNotification('Error: ' + (data.message || 'Could not remove product'), 'error');
             }
         } catch (e) {
-            console.error('Parse error:', e);
             showNotification('Server error. Please try again.', 'error');
         }
     };
     
     xhr.onerror = function() {
-        console.error('Request error');
         showNotification('Network error. Please try again.', 'error');
     };
     
@@ -305,6 +343,67 @@ function showNotification(message, type = 'success') {
         setTimeout(() => notification.remove(), 400);
     }, 3000);
 }
+
+function searchProducts() {
+    const searchInput = document.getElementById('searchInput').value.toLowerCase().trim();
+    const productCards = document.querySelectorAll('.product-card');
+    let visibleCount = 0;
+    
+    productCards.forEach(card => {
+        const title = card.querySelector('h4').textContent.toLowerCase();
+        const price = card.querySelector('p').textContent.toLowerCase();
+        
+        if (searchInput === '' || title.includes(searchInput) || price.includes(searchInput)) {
+            card.style.display = 'block';
+            visibleCount++;
+        } else {
+            card.style.display = 'none';
+        }
+    });
+    
+    const container = document.getElementById('productsContainer');
+    let noResultsMsg = container.querySelector('.no-results-msg');
+    if (visibleCount === 0 && searchInput !== '') {
+        if (!noResultsMsg) {
+            noResultsMsg = document.createElement('div');
+            noResultsMsg.className = 'no-results-msg';
+            noResultsMsg.style.cssText = 'grid-column:1/-1;text-align:center;padding:40px;color:rgba(255,255,255,0.6);';
+            noResultsMsg.textContent = 'No products found matching "' + searchInput + '"';
+            container.appendChild(noResultsMsg);
+        }
+    } else if (noResultsMsg) {
+        noResultsMsg.remove();
+    }
+}
+
+function filterByPrice(filter) {
+    const productCards = Array.from(document.querySelectorAll('.product-card'));
+    let filtered = productCards;
+    
+    if (filter === 'low') {
+        filtered = productCards.sort((a, b) => {
+            const priceA = parseFloat(a.querySelector('h4').nextElementSibling.textContent.replace('₱', ''));
+            const priceB = parseFloat(b.querySelector('h4').nextElementSibling.textContent.replace('₱', ''));
+            return priceA - priceB;
+        });
+    } else if (filter === 'high') {
+        filtered = productCards.sort((a, b) => {
+            const priceA = parseFloat(a.querySelector('h4').nextElementSibling.textContent.replace('₱', ''));
+            const priceB = parseFloat(b.querySelector('h4').nextElementSibling.textContent.replace('₱', ''));
+            return priceB - priceA;
+        });
+    }
+    
+    const container = document.getElementById('productsContainer');
+    container.innerHTML = '';
+    filtered.forEach(card => container.appendChild(card.cloneNode(true)));
+}
+
+document.getElementById('searchInput').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+        searchProducts();
+    }
+});
 
 </script>
 
