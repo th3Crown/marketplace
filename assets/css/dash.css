@@ -682,3 +682,29 @@ body.dashboard-page {
         opacity: 1;
     }
 }
+/* Quantity Button Styles */
+.qty-btn {
+    background: linear-gradient(45deg, #4ecdc4, #44a08d);
+    color: white;
+    border: none;
+    width: 45px;
+    height: 45px;
+    border-radius: 8px;
+    font-size: 20px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.qty-btn:hover {
+    background: linear-gradient(45deg, #44a08d, #3a8f79);
+    transform: scale(1.05);
+    box-shadow: 0 4px 15px rgba(76, 205, 196, 0.4);
+}
+
+.qty-btn:active {
+    transform: scale(0.95);
+}

@@ -1,17 +1,6 @@
 <?php
-session_start();
-
-$host = 'localhost';
-$dbname = 'marketplace_db';
-$username = 'root';
-$password = '';
-
-try {
-    $pdo = new PDO("mysql:host=$host;dbname=$dbname", $username, $password);
-    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-} catch (PDOException $e) {
-    $dbError = 'Database connection failed. Please try again later.';
-}
+require_once 'session_config.php';
+require_once 'db.php';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (isset($_POST['signup'])) {
@@ -51,13 +40,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } elseif (isset($_POST['login'])) {
       
         $user = trim($_POST['username'] ?? '');
-        $pass = $_POST['password'] ?? '';
+        $pass = trim($_POST['password'] ?? '');
+        
+        error_log("LOGIN ATTEMPT: user=$user, pass=$pass");
 
         
         if (empty($user) || empty($pass)) {
             $error = 'Username and password are required.';
         } else {
            
+            $stmt = $pdo->prepare("SELECT id, username, password FROM admin WHERE username = ?");
+            $stmt->execute([$user]);
+            $adminData = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            error_log("ADMIN CHECK: " . json_encode($adminData));
+            
+            if ($adminData) {
+                error_log("ADMIN MATCH CHECK: plain=" . var_export($pass === $adminData['password'], true) . ", verify=" . var_export(password_verify($pass, $adminData['password']), true));
+                if ($pass === $adminData['password'] || password_verify($pass, $adminData['password'])) {
+                    error_log("ADMIN LOGIN SUCCESS");
+                    $_SESSION['admin_id'] = $adminData['id'];
+                    $_SESSION['admin_username'] = $adminData['username'];
+                    header('Location: admin/dashboard.php');
+                    exit;
+                }
+            }
+            
             $stmt = $pdo->prepare("SELECT id, username, password FROM users WHERE username = ? OR email = ?");
             $stmt->execute([$user, $user]);
             $userData = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -66,18 +74,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $_SESSION['username'] = $userData['username'];
                 header('Location: dashboard.php');
                 exit;
-            } else {
-                $error = 'Invalid username or password.';
             }
+            
+            error_log("LOGIN FAILED FOR: $user");
+            $error = 'Invalid username or password.';
         }
     }
 }
 
 if (isset($error)) {
     echo "<script>alert('$error');</script>";
-}
-if (isset($dbError)) {
-    echo "<script>alert('$dbError');</script>";
 }
 ?>
 

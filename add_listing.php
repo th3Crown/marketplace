@@ -13,6 +13,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $title = trim($_POST['title'] ?? '');
     $description = trim($_POST['description'] ?? '');
     $price = floatval($_POST['price'] ?? 0);
+    $quantity = intval($_POST['quantity'] ?? 0);
     $userId = $_SESSION['user_id'];
 
     $image_url = '';
@@ -42,18 +43,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($message === '' && ($title === '' || $price <= 0)) {
         $message = 'Please provide a title and a valid price.';
+    } elseif ($message === '' && $quantity <= 0) {
+        $message = 'Please provide a valid quantity.';
     } elseif ($message === '' && $image_url === '') {
         $message = 'Image upload is required.';
     } else {
         if ($message === '') {
             try {
                 $stmt = $pdo->prepare(
-                    'INSERT INTO products (user_id, title, description, price, image_url)
-                     VALUES (?, ?, ?, ?, ?)'
+                    'INSERT INTO products (user_id, title, description, price, quantity, image_url, status)
+                     VALUES (?, ?, ?, ?, ?, ?, ?)'
                 );
-                $result = $stmt->execute([$userId, $title, $description, $price, $image_url]);
+                $result = $stmt->execute([$userId, $title, $description, $price, $quantity, $image_url, 'pending']);
                 
                 if ($result) {
+                    $productId = $pdo->lastInsertId();
+                    
+                    $notifStmt = $pdo->prepare(
+                        'INSERT INTO notifications (user_id, product_id, type, title, message)
+                         VALUES (?, ?, ?, ?, ?)'
+                    );
+                    $notifStmt->execute([
+                        $userId,
+                        $productId,
+                        'pending',
+                        'Product Under Review',
+                        'Your listing "' . $title . '" is under review. Admin approval may take up to 24 hours.'
+                    ]);
+                    
                     $message = 'success';
                 } else {
                     $message = 'Could not add listing. Please try again.';
@@ -120,6 +137,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </div>
 
     <div style="margin-bottom:8px;">
+        <label>Quantity Available: </label>
+        <div style="display:flex;align-items:center;gap:8px;">
+            <button type="button" class="qty-btn" onclick="decreaseQty()">−</button>
+            <input type="number" id="quantityInput" name="quantity" value="1" min="1" class="field-input" style="flex:1;text-align:center;" required>
+            <button type="button" class="qty-btn" onclick="increaseQty()">+</button>
+        </div>
+    </div>
+
+    <div style="margin-bottom:8px;">
         <label>Upload Image: </label>
         <input type="file" name="image" accept="image/*" required class="field-input">
     </div>
@@ -137,6 +163,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <script src="script.js"></script>
 <script>
     if (typeof AOS !== 'undefined') AOS.init();
+    
+    function increaseQty() {
+        const input = document.getElementById('quantityInput');
+        input.value = parseInt(input.value) + 1;
+    }
+    
+    function decreaseQty() {
+        const input = document.getElementById('quantityInput');
+        if (parseInt(input.value) > 1) {
+            input.value = parseInt(input.value) - 1;
+        }
+    }
     
     if (document.getElementById('successMsg')) {
         setTimeout(() => {

@@ -95,34 +95,14 @@ if (signupForm) {
 const loginForm = document.getElementById('loginForm');
 if (loginForm) {
     loginForm.addEventListener('submit', function(e) {
-        e.preventDefault();
-
-        const formData = new FormData(this);
-        const username = formData.get('username');
-        const password = formData.get('password');
+        const username = this.querySelector('input[name="username"]').value.trim();
+        const password = this.querySelector('input[name="password"]').value;
 
         if (!username || !password) {
+            e.preventDefault();
             alert('Please fill in all fields.');
             return;
         }
-
-        fetch('login_process.php', {
-            method: 'POST',
-            body: formData
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                alert('Login successful! Redirecting...');
-                window.location.href = 'dashboard.php';
-            } else {
-                alert('Error: ' + data.message);
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('An error occurred. Please try again.');
-        });
     });
 }
 

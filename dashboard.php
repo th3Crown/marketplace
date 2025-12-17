@@ -1,5 +1,5 @@
 <?php  
-session_start();  
+require_once 'session_config.php';
   
 if (!isset($_SESSION['user_id']) || !isset($_SESSION['username'])) {  
     header('Location: index.php');  
@@ -15,14 +15,7 @@ $stmt = $pdo->prepare("SELECT * FROM products WHERE user_id = ? ORDER BY created
 $stmt->execute([$userId]);
 $userProducts = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-$stmt = $pdo->prepare("
-    SELECT p.*, COUNT(o.id) as order_count
-    FROM products p
-    LEFT JOIN orders o ON p.id = o.product_id
-    GROUP BY p.id
-    ORDER BY order_count DESC, p.created_at DESC
-    LIMIT 100
-");
+$stmt = $pdo->prepare("SELECT * FROM products WHERE status = 'approved' ORDER BY created_at DESC LIMIT 100");
 $stmt->execute();
 $popularProducts = $stmt->fetchAll(PDO::FETCH_ASSOC);
 ?>
@@ -35,6 +28,7 @@ $popularProducts = $stmt->fetchAll(PDO::FETCH_ASSOC);
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="session_keepalive.js"></script>
     <style>
         @keyframes fadeInPage {
             from {
@@ -124,13 +118,16 @@ $popularProducts = $stmt->fetchAll(PDO::FETCH_ASSOC);
                                 'id' => (int)$product['id'],
                                 'title' => htmlspecialchars($product['title']),
                                 'price' => htmlspecialchars($product['price']),
+                                'quantity' => (int)$product['quantity'],
                                 'image_url' => !empty($product['image_url']) ? htmlspecialchars($product['image_url']) : 'https://via.placeholder.com/400x300?text=No+Image',
                                 'description' => htmlspecialchars($product['description'] ?? 'No description available')
                             ]) . ")" : ""; ?>" onmouseover="this.style.opacity='0.9'" onmouseout="this.style.opacity='1'">
                                 <?php $imgUrl = !empty($product['image_url']) ? htmlspecialchars($product['image_url']) : 'https://via.placeholder.com/400x300?text=No+Image'; ?>
                                 <img src="<?php echo $imgUrl; ?>" alt="<?php echo htmlspecialchars($product['title']); ?>" style="width:100%;height:160px;object-fit:cover;">
-                                <?php if (!empty($product['order_count']) && $product['order_count'] > 0): ?>
-                                <div style="position:absolute;top:8px;right:8px;background:#4ecdc4;color:#052;padding:4px 8px;border-radius:4px;font-size:0.8rem;font-weight:700;">📦 <?php echo (int)$product['order_count']; ?></div>
+                                <?php if ((int)$product['quantity'] > 0): ?>
+                                <div style="position:absolute;top:8px;right:8px;background:#4ecdc4;color:#052;padding:4px 8px;border-radius:4px;font-size:0.8rem;font-weight:700;">📦 <?php echo (int)$product['quantity']; ?> In Stock</div>
+                                <?php else: ?>
+                                <div style="position:absolute;top:8px;right:8px;background:#f44336;color:#fff;padding:4px 8px;border-radius:4px;font-size:0.8rem;font-weight:700;">Out of Stock</div>
                                 <?php endif; ?>
                                 <div style="padding:12px;">
                                     <h4 style="margin:0 0 8px 0;color:#fff;font-weight:600;"><?php echo htmlspecialchars($product['title']); ?></h4>
@@ -139,7 +136,7 @@ $popularProducts = $stmt->fetchAll(PDO::FETCH_ASSOC);
                                     <button onclick="event.stopPropagation();deleteProduct(<?php echo (int)$product['id']; ?>, '<?php echo htmlspecialchars($product['title']); ?>')" style="width:100%;padding:8px;background:#f44336;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600;transition:all 0.3s;" onmouseover="this.style.background='#d32f2f'" onmouseout="this.style.background='#f44336'">Remove</button>
                                     <p style="margin:6px 0 0 0;font-size:0.75rem;color:rgba(255,255,255,0.5);text-align:center;">(Your Product)</p>
                                     <?php else: ?>
-                                    <button onclick="event.stopPropagation();buyProduct(<?php echo (int)$product['id']; ?>, '<?php echo htmlspecialchars($product['title']); ?>', <?php echo htmlspecialchars($product['price']); ?>)" style="width:100%;padding:8px;background:#4ecdc4;color:#052;border:none;border-radius:6px;cursor:pointer;font-weight:600;transition:all 0.3s;" onmouseover="this.style.background='#3db8af'" onmouseout="this.style.background='#4ecdc4'">Buy Now</button>
+                                    <button onclick="event.stopPropagation();buyProduct(<?php echo (int)$product['id']; ?>, '<?php echo htmlspecialchars($product['title']); ?>', <?php echo htmlspecialchars($product['price']); ?>, <?php echo (int)$product['quantity']; ?>)" style="width:100%;padding:8px;background:<?php echo ((int)$product['quantity'] > 0) ? '#4ecdc4' : '#ccc'; ?>;color:<?php echo ((int)$product['quantity'] > 0) ? '#052' : '#999'; ?>;border:none;border-radius:6px;cursor:<?php echo ((int)$product['quantity'] > 0) ? 'pointer' : 'not-allowed'; ?>;font-weight:600;transition:all 0.3s;" onmouseover="<?php echo ((int)$product['quantity'] > 0) ? "this.style.background='#3db8af'" : ""; ?>" onmouseout="<?php echo ((int)$product['quantity'] > 0) ? "this.style.background='#4ecdc4'" : ""; ?>" <?php echo ((int)$product['quantity'] <= 0) ? 'disabled' : ''; ?>>Buy Now</button>
                                     <?php endif; ?>
                                 </div>
                             </div>
@@ -211,6 +208,9 @@ function showProductDetails(product) {
         document.body.appendChild(modal);
     }
 
+    const isOutOfStock = product.quantity <= 0;
+    const stockDisplay = isOutOfStock ? '<p style="color:#f44336;font-weight:600;margin:8px 0;">Out of Stock</p>' : `<p style="color:#4ecdc4;font-weight:600;margin:8px 0;">📦 ${product.quantity} items available</p>`;
+    
     modal.innerHTML = `
         <div style="background: rgba(45,55,72,0.98); margin: 4% auto; padding: 20px; border-radius: 10px; width: 92%; max-width: 700px; color: #fff;">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
@@ -222,8 +222,17 @@ function showProductDetails(product) {
                 <div style="flex:1;min-width:200px;">
                     <p style="margin:0 0 8px 0;color:#cbd5e0;">${product.description}</p>
                     <p style="color:#4ecdc4;font-weight:700;font-size:1.2rem;margin-top:8px;">₱${parseFloat(product.price).toFixed(2)}</p>
+                    ${stockDisplay}
+                    <div style="margin-top:14px;">
+                        <label style="display:block;color:#cbd5e0;font-size:0.9rem;margin-bottom:6px;">Quantity:</label>
+                        <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+                            <button type="button" onclick="decreaseQtyModal()" style="background:linear-gradient(45deg,#4ecdc4,#44a08d);color:#fff;width:40px;height:40px;border:none;border-radius:6px;font-size:18px;cursor:pointer;font-weight:bold;">−</button>
+                            <input type="number" id="modalQuantity" value="1" min="1" max="${product.quantity}" style="flex:1;padding:8px;background:rgba(255,255,255,0.1);color:#fff;border:1px solid rgba(78,205,196,0.3);border-radius:6px;text-align:center;" />
+                            <button type="button" onclick="increaseQtyModal(${product.quantity})" style="background:linear-gradient(45deg,#4ecdc4,#44a08d);color:#fff;width:40px;height:40px;border:none;border-radius:6px;font-size:18px;cursor:pointer;font-weight:bold;">+</button>
+                        </div>
+                    </div>
                     <div style="margin-top:14px;display:flex;gap:8px;">
-                        <button onclick="buyProductFromModal(${product.id}, '${product.title}', ${product.price})" style="flex:1;padding:10px;background:#4ecdc4;color:#052;border:none;border-radius:6px;font-weight:600;cursor:pointer;transition:all 0.3s;" onmouseover="this.style.background='#3db8af'" onmouseout="this.style.background='#4ecdc4'">Buy Now</button>
+                        <button onclick="buyProductFromModal(${product.id}, '${product.title}', ${product.price})" style="flex:1;padding:10px;background:${isOutOfStock ? '#ccc' : '#4ecdc4'};color:${isOutOfStock ? '#999' : '#052'};border:none;border-radius:6px;font-weight:600;cursor:${isOutOfStock ? 'not-allowed' : 'pointer'};transition:all 0.3s;" ${isOutOfStock ? 'disabled' : ''}>Buy Now</button>
                         <button onclick="closeProductModal()" style="flex:1;padding:10px;background:rgba(255,255,255,0.1);color:#fff;border:none;border-radius:6px;font-weight:600;cursor:pointer;">Close</button>
                     </div>
                 </div>
@@ -233,15 +242,32 @@ function showProductDetails(product) {
     modal.style.display = 'block';
 }
 
+function increaseQtyModal(maxQty) {
+    const input = document.getElementById('modalQuantity');
+    if (parseInt(input.value) < maxQty) {
+        input.value = parseInt(input.value) + 1;
+    }
+}
+
+function decreaseQtyModal() {
+    const input = document.getElementById('modalQuantity');
+    if (parseInt(input.value) > 1) {
+        input.value = parseInt(input.value) - 1;
+    }
+}
+
 function closeProductModal() {
     const modal = document.getElementById('productDetailModal');
     if (modal) modal.style.display = 'none';
 }
 
 function buyProductFromModal(productId, productTitle, productPrice) {
+    const quantityInput = document.getElementById('modalQuantity');
+    const quantity = parseInt(quantityInput.value) || 1;
+    
     const formData = new FormData();
     formData.append('product_id', productId);
-    formData.append('quantity', 1);
+    formData.append('quantity', quantity);
 
     fetch('place_order.php', {
         method: 'POST',
@@ -251,7 +277,7 @@ function buyProductFromModal(productId, productTitle, productPrice) {
     .then(data => {
         if (data.success) {
             closeProductModal();
-            showNotification('✓ Order placed! Product: ' + data.product_title + ' | Total: ₱' + parseFloat(data.total_price).toFixed(2), 'success');
+            showNotification('✓ Order placed! Product: ' + data.product_title + ' (Qty: ' + quantity + ') | Total: ₱' + parseFloat(data.total_price).toFixed(2), 'success');
             setTimeout(() => location.reload(), 2000);
         } else {
             showNotification('Error: ' + data.message, 'error');
@@ -262,7 +288,7 @@ function buyProductFromModal(productId, productTitle, productPrice) {
     });
 }
 
-function buyProduct(productId, productTitle, productPrice) {
+function buyProduct(productId, productTitle, productPrice, availableQty) {
     const formData = new FormData();
     formData.append('product_id', productId);
     formData.append('quantity', 1);

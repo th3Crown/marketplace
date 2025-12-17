@@ -1,5 +1,5 @@
 <?php
-session_start();
+require_once 'session_config.php';
 require_once __DIR__ . '/db.php';
 
 if (!isset($_SESSION['user_id']) || !isset($_SESSION['username'])) {
@@ -29,6 +29,7 @@ try {
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="session_keepalive.js"></script>
     <link rel="stylesheet" href="assets/css/dash.css">
 </head>
 <body class="dashboard-page">
@@ -49,7 +50,6 @@ try {
                         </div>
                     <?php else: ?>
                         <?php foreach ($orders as $o): ?>
-                            <div class="order-item" style="cursor: pointer;" onclick="viewOrderDetails(<?php echo $o['id']; ?>)">
                                 <img src="<?php echo htmlspecialchars($o['image_url'] ?: 'https://via.placeholder.com/80x80?text=No+Image'); ?>" alt="Product" class="order-item-img">
                                 <div class="order-item-details">
                                     <h4><?php echo htmlspecialchars($o['title']); ?></h4>

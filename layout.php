@@ -47,7 +47,6 @@ if (isset($_SESSION['user_id'])) {
     <div class="sidebar-brand">Marketplace</div>
     <nav class="sidebar-nav">
         <a href="dashboard.php" class="nav-link <?php echo $current === 'dashboard.php' ? 'active' : '';?>"><i class="fas fa-tachometer-alt"></i> <span>Dashboard</span></a>
-        <a href="#" class="nav-link" onclick="alert('Messages coming soon!');return false;"><i class="fas fa-envelope"></i> <span>Messages</span></a>
         <a href="add_listing.php" class="nav-link <?php echo $current === 'add_listing.php' ? 'active' : '';?>"><i class="fas fa-plus"></i> <span>Add Listing</span></a>
         <a href="notifications.php" class="nav-link <?php echo $current === 'notifications.php' ? 'active' : '';?>"><i class="fas fa-bell"></i> <span>Notifications</span></a>
         <a href="orders.php" class="nav-link <?php echo $current === 'orders.php' ? 'active' : '';?>"><i class="fas fa-box-open"></i> <span>Orders</span></a>

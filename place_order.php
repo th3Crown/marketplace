@@ -24,7 +24,7 @@ if ($productId <= 0 || $quantity <= 0) {
 }
 
 try {
-    $stmt = $pdo->prepare('SELECT id, title, price FROM products WHERE id = ?');
+    $stmt = $pdo->prepare('SELECT id, title, price, quantity as available_quantity FROM products WHERE id = ?');
     $stmt->execute([$productId]);
     $product = $stmt->fetch(PDO::FETCH_ASSOC);
     
@@ -33,24 +33,18 @@ try {
         exit;
     }
     
-    $totalPrice = (float)$product['price'] * $quantity;
-    
-    try {
-        $pdo->exec("CREATE TABLE IF NOT EXISTS orders (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            user_id INT NOT NULL,
-            product_id INT NOT NULL,
-            quantity INT NOT NULL DEFAULT 1,
-            total_price DECIMAL(10,2) NOT NULL,
-            order_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-            FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
-        )");
-    } catch (Exception $e) {
+    if ($quantity > $product['available_quantity']) {
+        echo json_encode(['success' => false, 'message' => 'Not enough stock available. Only ' . $product['available_quantity'] . ' item(s) in stock.']);
+        exit;
     }
+    
+    $totalPrice = (float)$product['price'] * $quantity;
     
     $stmt = $pdo->prepare('INSERT INTO orders (user_id, product_id, quantity, total_price) VALUES (?, ?, ?, ?)');
     $stmt->execute([$userId, $productId, $quantity, $totalPrice]);
+    
+    $stmt = $pdo->prepare('UPDATE products SET quantity = quantity - ? WHERE id = ?');
+    $stmt->execute([$quantity, $productId]);
     
     $orderId = $pdo->lastInsertId();
     

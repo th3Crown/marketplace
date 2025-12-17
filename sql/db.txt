@@ -19,14 +19,42 @@ CREATE TABLE products (
     title VARCHAR(150) NOT NULL,
     description TEXT,
     price DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+    quantity INT NOT NULL DEFAULT 0,
     image_url VARCHAR(255),
+    status ENUM('pending', 'approved') DEFAULT 'pending',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
--- Example products to be inserted built in but no image
-INSERT INTO products (user_id, title, description, price, image_url) VALUES
-(1, 'Classic Runner', 'Comfortable running shoe', 79.00, 'images/products/shoe1.jpg'),
-(1, 'Krazy Rapid Boots', 'Stylish everyday sneaker', 99.00, 'images/products/shoe2.jpg'),
-(1, 'Street Pro', 'Durable street shoe', 129.00, 'images/products/shoe3.jpg'),
-(1, 'Light Runner', 'Lightweight running shoe', 69.00, 'images/products/shoe4.jpg');
+CREATE TABLE orders (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    product_id INT NOT NULL,
+    quantity INT NOT NULL DEFAULT 1,
+    total_price DECIMAL(10,2) NOT NULL,
+    order_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
+);
+
+CREATE TABLE admin (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    username VARCHAR(50) NOT NULL UNIQUE,
+    password VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+INSERT INTO admin (username, password) VALUES ('admin', '$2y$10$YIjlrBsDI.U5.ZBh2pFrXeXsUz4p9YlEj0.9XKJTjxPVZPCNMl6Tu');
+
+CREATE TABLE notifications (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    product_id INT,
+    type VARCHAR(50) NOT NULL,
+    title VARCHAR(150) NOT NULL,
+    message TEXT NOT NULL,
+    is_read BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
+);
